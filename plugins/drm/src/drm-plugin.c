@@ -283,6 +283,7 @@ INTERNAL surfman_psurface_t drmp_get_psurface_from_surface(surfman_plugin_t *plu
     }
     s->fb.height = surfman_surface->height;
     s->fb.width = surfman_surface->width;
+    s->fb.format = surfman_surface->format;
     s->fb.bpp = surfman_format_to_bpp(surfman_surface->format);
     s->fb.depth = surfman_format_to_depth(surfman_surface->format);
     if (!s->fb.bpp || !s->fb.depth) {
@@ -335,6 +336,7 @@ INTERNAL void drmp_update_psurface(surfman_plugin_t *plugin, surfman_psurface_t 
     s->fb.offset = surface->offset;
     s->fb.pitch = surface->stride;
     s->fb.width = surface->width;
+    s->fb.format = surface->format;
     s->fb.height = surface->height;
     s->fb.depth = surfman_format_to_depth(surface->format);
     s->fb.bpp = surfman_format_to_bpp(surface->format);
@@ -506,9 +508,7 @@ surfman_plugin_t surfman_plugin = {
     .restore_brightness = drmp_restore_brightness,
     .options = {
         64,   /* libDRM requires a 64 bytes alignment (not 64bit ;). */
-        0     /* TODO: SURFMAN_FEATURE_NEED_REFRESH triggers a cache-incohrency with xenfb2
-                       and foreign method (looks like scrambling when moving something on the screen.
-                       I thought this was fixed with linux-pq.git:master/enable-pat. */
+        SURFMAN_FEATURE_NEED_REFRESH
     },
     .notify = SURFMAN_NOTIFY_NONE
 };

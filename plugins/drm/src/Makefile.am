@@ -21,6 +21,7 @@ CPROTO = cproto
 SRCS =	drm-plugin.c			\
 	device.c			\
 	device-intel.c			\
+	device-gles.c       \
 	framebuffer-dumb.c		\
 	framebuffer-i915_foreign.c	\
 	monitor.c			\
@@ -35,9 +36,10 @@ plugin_LTLIBRARIES = drm-plugin.la
 
 drm_plugin_la_SOURCES = ${SRCS}
 drm_plugin_la_LDFLAGS = -module
-drm_plugin_la_CFLAGS = ${LIBUDEV_CFLAGS} ${LIBDRM_CFLAGS} ${LIBSURFMAN_CFLAGS} -W -Wall -Werror -g
-drm_plugin_la_CPPFLAGS = ${LIBUDEV_CFLAGS} ${LIBDRM_CFLAGS} ${LIBSURFMAN_CFLAGS}
-drm_plugin_la_LIBADD = ${LIBUDEV_LIBS} ${LIBDRM_LIBS} ${LIBSURFMAN_LIBS}
+drm_plugin_la_CFLAGS = ${LIBUDEV_CFLAGS} ${LIBDRM_CFLAGS} ${LIBSURFMAN_CFLAGS} ${GLES_CFLAGS} ${GBM_CFLAGS} ${EGL_CFLAGS} -W -Wall -Werror -g
+drm_plugin_la_CPPFLAGS = ${LIBUDEV_CFLAGS} ${LIBDRM_CFLAGS} ${LIBSURFMAN_CFLAGS} ${GLES_CFLAGS} ${GBM_CFLAGS} ${EGL_CFLAGS}
+drm_plugin_la_LIBADD = ${LIBUDEV_LIBS} ${LIBDRM_LIBS} ${LIBSURFMAN_LIBS} ${GBM_LIBS} ${GLES_LIBS} ${EGL_LIBS}
+
 
 protos: 
 	echo > prototypes.h

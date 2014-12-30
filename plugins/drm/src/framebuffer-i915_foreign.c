@@ -18,6 +18,30 @@
 
 #include "project.h"
 
+
+/**
+ * This little diagnostic stub allows this to be built on systems without a patched libdrm.
+ * I'll have to come and revisit this-- depending on how things are set up, this IOCTL may actually fail nicely
+ * and fall back to a dumb frambuffer on systems without the patched libDRM.
+ */ 
+#ifndef DRM_IOCTL_I915_GEM_FOREIGN
+
+  #define DRM_I915_GEM_FOREIGN            0x34
+  #define DRM_IOCTL_I915_GEM_FOREIGN              DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_FOREIGN, struct drm_i915_gem_foreign)
+
+  struct drm_i915_gem_foreign {
+          __u64 *mfns;
+          __u32 num_pages;
+  #define I915_FOREIGN_BALLOON_PAGES 0x00000001
+  #define I915_FOREIGN_BALLOON_HIGH  0x00000002
+          __u32 flags;
+          __u32 handle;
+  };
+
+#endif
+
+
+
 /* TODO: Tie up surface and framebuffers. */
 #if 0
 /* Foreign framebuffers. */

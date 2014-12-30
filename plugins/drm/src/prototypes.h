@@ -53,6 +53,8 @@ extern int drm_device_set_master(struct drm_device *device);
 extern void drm_device_drop_master(struct drm_device *device);
 /* device-intel.c */
 extern const struct drm_device_ops i915_ops;
+/* device-gles.c */
+extern const struct drm_device_ops gles_ops;
 /* framebuffer-dumb.c */
 extern struct drm_framebuffer *__dumb_framebuffer_create(struct drm_device *device, unsigned int width, unsigned int height, unsigned int depth, unsigned int bpp);
 extern const struct drm_framebuffer_ops framebuffer_dumb_ops;

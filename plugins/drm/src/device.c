@@ -20,11 +20,13 @@
 
 enum supported_device {
     SUPPORTED_DEVICE_I915 = 0,
+    SUPPORTED_DEVICE_GLES = 1,
     SUPPORTED_DEVICE_MAX
 };
 
 static const struct drm_device_ops *supported_devices[SUPPORTED_DEVICE_MAX] = {
     [SUPPORTED_DEVICE_I915] = &i915_ops,
+    [SUPPORTED_DEVICE_GLES] = &gles_ops,
 };
 
 /* Open the char-dev provided by DRM and initializes our object for it. */
