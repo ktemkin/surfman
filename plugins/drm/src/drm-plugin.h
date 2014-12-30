@@ -90,6 +90,8 @@ struct framebuffer {
 
     off_t offset;                   /* Offset at which the pixels start. */
     uint8_t *map;                   /* Mapped framebuffer (if mapped). */
+
+    unsigned int format;
 };
 
 /* Our plugin surface to surfman. */
@@ -160,10 +162,16 @@ struct drm_monitor {
     /* Refs */
     struct drm_surface *surface;    /* Surface displayed currently. */
     struct drm_device *device;      /* Reference to the device (in case of multiple devices). */
+
+    void * device_data;             /* Device specific data, where applicable. */
 };
 
 /* Operations expected of a device. */
 struct drm_device_ops {
+    
+    /* The name of the given device; for debugging. */
+    char * name;
+
     /* Set a source to display on a sink. */
     int (*set)(struct drm_monitor *sink, struct drm_surface *source);
     /* Unbind sink from source and release the sink resources. */

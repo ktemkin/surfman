@@ -58,6 +58,17 @@ PKG_CHECK_MODULES(LIBUDEV, libudev, [], [AC_MSG_ERROR("libudev required.")])
 AC_SUBST(LIBUDEV_CFLAGS)
 AC_SUBST(LIBUDEV_LIBS)
 
+# TODO: Make these options, so we can build the plugin minus GLES support, if we want?
+PKG_CHECK_MODULES(EGL, egl, [], [AC_MSG_ERROR("Mesa EGL support required.")])
+AC_SUBST(EGL_CFLAGS)
+AC_SUBST(EGL_LIBS)
+PKG_CHECK_MODULES(GBM, gbm, [], [AC_MSG_ERROR("Mesa GBM support required.")])
+AC_SUBST(GBM_CFLAGS)
+AC_SUBST(GBM_LIBS)
+PKG_CHECK_MODULES(GLES, glesv2, [], [AC_MSG_ERROR("Mesa OpenGL ES 2 support required.")])
+AC_SUBST(GLES_CFLAGS)
+AC_SUBST(GLES_LIBS)
+
 ## This one doesn't have pkg-config support...
 AC_CHECK_HEADERS([event.h], [], [AC_MSG_ERROR("libevent required.")])
 

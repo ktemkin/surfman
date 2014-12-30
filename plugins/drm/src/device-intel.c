@@ -403,6 +403,11 @@ static void i915_refresh(struct drm_monitor *monitor, const struct drm_surface *
 {
     struct drm_framebuffer *sink;
 
+    /* TODO: SURFMAN_FEATURE_NEED_REFRESH triggers a cache-incohrency with xenfb2
+             and foreign method (looks like scrambling when moving something on the screen.
+             I thought this was fixed with linux-pq.git:master/enable-pat. */
+    //return;
+
     /* XXX: We don't compose for now, so if there's a plane, that's what we want to display. */
     if (monitor->plane) {
         sink = monitor->plane->framebuffer;
@@ -442,6 +447,7 @@ static int i915_match_udev_device(struct udev *udev, struct udev_device *device)
 }
 
 const struct drm_device_ops i915_ops = {
+    .name = "i915",
     .set = i915_set,
     .unset = i915_unset,
     .refresh = i915_refresh,
