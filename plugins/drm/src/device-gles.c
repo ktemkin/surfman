@@ -884,13 +884,41 @@ static void gles_refresh(struct drm_monitor *monitor, const struct drm_surface *
 }
 
 /**
+ * Determine if the 
+ */
+static int __matches_additional_drivers(const char * additional_drivers, const char * driver) {
+   
+    char * single_driver;
+
+    //If we weren't passed a list of additional drivers, no driver matches!
+    if(!additional_drivers) {
+        return 0;
+    }
+
+    single_driver = strtok((char *)additional_drivers, " ,");
+
+    //Iterate over each of the supplied additional drivers,
+    //until we either have a match...
+    while(single_driver) {
+        if(strcmp(single_driver, driver) == 0) {
+            return 1; 
+        }
+
+        single_driver = strtok(NULL, " ,");
+    }
+
+    //... or realize there is none. 
+    return 0;
+}
+
+/**
  * Determines if the OpenGL ES driver can be used with the given device.
  * TODO: This should probably be more refined to actually check for support-- but this will do for
  * now (as most GPUs should be supported with swrast as a fallback).
  */
 static int gles_match_udev_device(struct udev *udev, struct udev_device *device)
 {
-    const char *driver;
+    const char * driver;
     struct udev_device *dev;
     int rc, i;
 
@@ -921,7 +949,22 @@ static int gles_match_udev_device(struct udev *udev, struct udev_device *device)
     //work with MESA--- note that we can fall back to "swrast" if we need to.
     if(driver) {
       for(i = 0; i < SUPPORTED_GLES_DEVICE_COUNT; ++i) {
-      
+
+        const char * additional_drivers = config_get(PLUGIN_NAME, SETTING_ADDITIONAL_DRIVERS);
+
+        if(__matches_additional_drivers(additional_drivers, driver)) {
+          DRM_INF("Found a(n) %s card; which is marked for use in our configuration.", driver);
+          rc = SURFMAN_SUCCESS;
+          break; 
+        }
+
+        //If a wildcard additional driver is set, use the first available device.
+        if(additional_drivers && strstr(additional_drivers, "*")) {
+          DRM_INF("DRM has been configured to use the GLES plugin for all devices. (Found: %s).", driver);
+          rc = SURFMAN_SUCCESS;
+          break; 
+        }
+
         //If we have a match, we can use this graphics card wit this genericized driver!
         if(strcmp(supported_gles_device_driver[i], driver) == 0) {
           DRM_INF("Discovered a GLES-compatible %s card; suggesting to surfman it be used with the DRM driver.", driver);

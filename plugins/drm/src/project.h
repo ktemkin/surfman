@@ -21,6 +21,7 @@
 
 #define PLUGIN_NAME "drm-plugin"
 #define CONFIG_SCALING_MODE "scaling_mode"
+#define SETTING_ADDITIONAL_DRIVERS "use-gles-for"
 
 # include "config.h"
 
