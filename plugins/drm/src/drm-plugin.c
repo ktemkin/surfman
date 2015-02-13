@@ -29,8 +29,14 @@ struct udev *udev;
 /* Backlight object (should be device dependent, but we don't have that freedom). */
 struct backlight *backlight;
 
+/* By default, use our speedy-but-hackish foreign framebuffers. */
+int use_foreign_framebuffers = 1;
+
+
 INTERNAL int drmp_init(surfman_plugin_t *plugin)
 {
+    const char * foreign_framebuffer_setting = config_get(PLUGIN_NAME, SETTING_USE_FOREIGN_FRAMEBUFFER);
+    
     (void) plugin;
     int rc;
 
@@ -52,6 +58,12 @@ INTERNAL int drmp_init(surfman_plugin_t *plugin)
     backlight = backlight_init(udev);
     if (!backlight) {
         DRM_WRN("Could not manage backlight in Surfman.");
+    }
+
+    //If a setting has been provied for "use provided framebuffer", respect it.
+    if(foreign_framebuffer_setting != NULL) {
+        use_foreign_framebuffers  = !!(strstr(foreign_framebuffer_setting, "no"));
+        use_foreign_framebuffers &= !!(strstr(foreign_framebuffer_setting, "false"));
     }
 
     return SURFMAN_SUCCESS;

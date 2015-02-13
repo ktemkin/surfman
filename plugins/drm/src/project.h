@@ -20,7 +20,8 @@
 # define __PROJECT_H__
 
 #define PLUGIN_NAME "drm-plugin"
-#define SETTING_ADDITIONAL_DRIVERS "use-gles-for"
+#define SETTING_ADDITIONAL_DRIVERS "use_gles_for"
+#define SETTING_USE_FOREIGN_FRAMEBUFFER "use_foreign_framebuffers"
 
 # include "config.h"
 

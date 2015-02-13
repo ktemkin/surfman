@@ -18,6 +18,8 @@
 
 #include "project.h"
 
+extern int use_foreign_framebuffers;
+
 /* Constraints on modesetting with libDRM:
  * - We are only able to scale up if
  *   + Using plane,
@@ -223,13 +225,16 @@ static struct drm_framebuffer *i915_framebuffer_new(struct drm_device *device, s
 
     /* TODO: We now have a userland way to provide fbtap feature (and better) using
      *       DRM. So that check will eventually go away with fbtap. */
-    if (surface->domid > 0) {
+    if (surface->domid > 0 && use_foreign_framebuffers) {
         drmfb = framebuffer_foreign_ops.create(device, surface);
         if (drmfb) {
             goto succeed;
         }
         DRM_WRN("Could not create foreign framebuffer for dom%u (%s). Falling back to dumb method.",
                 surface->domid, strerror(errno));
+    } else {
+        DRM_INF("Opting not to use a foreign framebuffer for dom%u.", surface->domid);
+        DRM_INF("This can be controlled via the setting " PLUGIN_NAME "." SETTING_USE_FOREIGN_FRAMEBUFFER " in surfman.conf.");
     }
 
     /* We consider DUMB method is "fallback" as we assume it is supported for
@@ -402,16 +407,6 @@ static void i915_refresh(struct drm_monitor *monitor, const struct drm_surface *
                          const struct rect *rectangle)
 {
     struct drm_framebuffer *sink;
-
-    //NEED_REFRESH was originally disabled with the following comment.
-    /* TODO: SURFMAN_FEATURE_NEED_REFRESH triggers a cache-incohrency with xenfb2
-             and foreign method (looks like scrambling when moving something on the screen.
-             I thought this was fixed with linux-pq.git:master/enable-pat. */
-
-    //I'm disabling this here in the Intel device plugin for now (producint the same behavior).
-    //More intelligently, we could disable the refresh only for FOREIGN buffers-- or someone
-    //could fix the underlying issue. 
-    return;
 
     /* XXX: We don't compose for now, so if there's a plane, that's what we want to display. */
     if (monitor->plane) {
