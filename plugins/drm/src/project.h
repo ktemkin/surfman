@@ -22,6 +22,7 @@
 #define PLUGIN_NAME "drm-plugin"
 #define CONFIG_SCALING_MODE "scaling_mode"
 #define SETTING_ADDITIONAL_DRIVERS "use-gles-for"
+#define SETTING_USE_FOREIGN_FRAMEBUFFER "use_foreign_framebuffers"
 
 # include "config.h"
 
