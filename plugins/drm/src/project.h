@@ -19,6 +19,9 @@
 #ifndef __PROJECT_H__
 # define __PROJECT_H__
 
+#define PLUGIN_NAME "drm-plugin"
+#define SETTING_ADDITIONAL_DRIVERS "use-gles-for"
+
 # include "config.h"
 
 # ifdef TM_IN_SYS_TIME

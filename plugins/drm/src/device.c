@@ -18,15 +18,18 @@
 
 #include "project.h"
 
+//Note: the GLES plugin should come before i915 in this list; this ensures
+//that we can override other plugins with the more generic GLES plugin via
+//a configuration quirk.
 enum supported_device {
-    SUPPORTED_DEVICE_I915 = 0,
-    SUPPORTED_DEVICE_GLES = 1,
+    SUPPORTED_DEVICE_GLES = 0,
+    SUPPORTED_DEVICE_I915 = 1,
     SUPPORTED_DEVICE_MAX
 };
 
 static const struct drm_device_ops *supported_devices[SUPPORTED_DEVICE_MAX] = {
-    [SUPPORTED_DEVICE_I915] = &i915_ops,
     [SUPPORTED_DEVICE_GLES] = &gles_ops,
+    [SUPPORTED_DEVICE_I915] = &i915_ops,
 };
 
 /* Open the char-dev provided by DRM and initializes our object for it. */
