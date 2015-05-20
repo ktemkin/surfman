@@ -397,14 +397,14 @@ static int set_up_egl(struct gles_display * display)
 
   //Select the API we'll be using with EGL, which is OpenGL ES.
 	if (!eglBindAPI(EGL_OPENGL_ES_API)) {
-		error("failed to bind api EGL_OPENGL_ES_API\n");
+		DRM_ERR("failed to bind api EGL_OPENGL_ES_API\n");
 		return SURFMAN_ERROR;
 	}
 
   //Attempt select an EGL configuration which meets our needs-- this configuration
   //will be used to wrap the GBM buffer with fancy GL rendering objects.
 	if (!eglChooseConfig(egl->display, config_attribs, &egl->config, 1, &n) || n != 1) {
-		error("failed to choose config: %d\n", n);
+		DRM_ERR("failed to choose config: %d\n", n);
 		return SURFMAN_ERROR;
 	}
 
@@ -412,7 +412,7 @@ static int set_up_egl(struct gles_display * display)
   //rendering.
 	egl->context = eglCreateContext(egl->display, egl->config, EGL_NO_CONTEXT, context_attribs);
 	if (egl->context == NULL) {
-		error("failed to create context\n");
+		DRM_ERR("failed to create context\n");
 		return SURFMAN_ERROR;
 	}
 
@@ -420,7 +420,7 @@ static int set_up_egl(struct gles_display * display)
   //rendering!
 	egl->surface = eglCreateWindowSurface(egl->display, egl->config, display->gbm.surface, NULL);
 	if (egl->surface == EGL_NO_SURFACE) {
-		error("failed to create egl surface\n");
+		DRM_ERR("failed to create egl surface\n");
 		return SURFMAN_ERROR;
 	}
 
@@ -584,8 +584,7 @@ static struct drm_fb * get_drm_fb_for_bo(struct gles_display * display, struct g
 	handle = gbm_bo_get_handle(bo).u32;
 
   //And pass DRM the framebuffer.
-  //TODO: Remove these magic numbers (color depth and BPP).
-	ret = drmModeAddFB(display->dri_fd, width, height, 24, 32, stride, handle, &fb->fb_id);
+	ret = drmModeAddFB(display->dri_fd, width, height, drm_gles_color_depth, drm_gles_bits_per_pixel, stride, handle, &fb->fb_id);
 	if (ret) {
 		DRM_ERR("Failed to create a DRM fb: %s\n", strerror(errno));
 		free(fb);
@@ -614,12 +613,7 @@ static int initialize_monitor(struct gles_display * display, struct drm_monitor 
 
     int ret;
 
-    //Start off by clearing the screen. This allows us to get a
-    //buffer for the first time! [Note that this also causes a potentially
-    //irritaiting momentary "black flash" when switching. In most cases, this
-    //is too fast to see, so it's likely not worth getting rid of. This section
-    //would need to be rearchitectured anyways if we want to provide support for,
-    //say, smooth transition animations.)
+    //Start off by clearing the screen. This allows us to get a buffer for the first time!
     glClearColor(0, 0, 0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
     eglSwapBuffers(display->egl.display, display->egl.surface);
@@ -627,7 +621,7 @@ static int initialize_monitor(struct gles_display * display, struct drm_monitor 
     //Get a GBM buffer object.
     bo = gbm_surface_lock_front_buffer(display->gbm.surface);
     if(!bo) {
-      error("Got a null buffer object from lock-front-buffer on start up. Ut-oh!");
+      DRM_ERR("Got a null buffer object from lock-front-buffer on start up. Ut-oh!");
       return SURFMAN_ERROR;
     }
 
@@ -748,14 +742,87 @@ static int get_gl_formats(int surfman_surface_fmt, GLenum *gl_fmt, GLenum *gl_ty
       *gl_typ = GL_UNSIGNED_BYTE;
       return SURFMAN_SUCCESS;
 
+  //TODO: Validate this case, noting that OpenGL's internal storages
+  //often have reversed endianness (so surfman's BGR may be GL's RGB).
   case SURFMAN_FORMAT_BGR565:
-      error("OpenGL ES does not support BGR565, and we've yet to implement manual translation. You're out of luck!");
-      return SURFMAN_ERROR;
+      *gl_fmt = GL_RGB565_OES;
+      *gl_typ = GL_UNSIGNED_BYTE;
+      return SURFMAN_SUCCESS;
+
   default:
-      error("unsupported surfman surface format %d", surfman_surface_fmt );
+      DRM_ERR("unsupported surfman surface format %d", surfman_surface_fmt );
       return SURFMAN_ERROR;
   }
 }
+
+/**
+ * Uploads the provided bitmap onto the drawing canvas, resizing the canvas.
+ * This should be called for texture upload after any change in screen size or color layout.
+ *
+ * NOTE: Most users will want to use upload_canvas instead!
+ *
+ * @param display The gles_device that holds the EGL instance for the current state.
+ * @param width The width of the image to be uploaded.
+ * @param height The height of the image to be uploaded.
+ * @param stride The stride of the image to be uploaded.
+ * @param color_layout The color layout (e.g. RGBA) for the image to be uploaded-- these can be decoded from surfman image formats using get_gl_formats.
+ * @param storage_type The storage type (e.g. GL_UNSIGNED_BYTE) for the image to be uploaded-- again, these can be retreived using get_gl_formats.
+ * @param target_bitmap The bitmap to be uploaded.
+ */ 
+static void __reshape_canvas_and_update(struct gles_display * display, GLuint width, GLuint height, GLuint stride, GLenum color_layout, GLenum storage_type, GLubyte * target_bitmap) 
+{
+  //Specify the texture that we're working with.
+	glBindTexture(GL_TEXTURE_2D, display->egl.canvas_texture);
+
+  //Set the texture's stride -- which should match the stride of the source bitmap.
+  glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride);
+
+  //And specify our offset into the image. Since we're uploading the whole image,
+  //this should always be zero pixels in!
+  glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+  glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+
+  //Upload the screen data to the GPU, recreating the GPU texture. This effectively changes the "geometry"
+  //of our canvas-- internally, OpenGL reallocates the relevant texture store, and then schedules a texture transfer.
+  glTexImage2D(GL_TEXTURE_2D, 0, color_layout, width, height, 0, color_layout, storage_type, target_bitmap);
+
+  //Update our internal knowledge of the texture layout.
+  display->egl.canvas_width  = width;
+  display->egl.canvas_height = height;
+  display->egl.canvas_color_layout = color_layout;
+}
+
+/**
+ * Uploads the provided bitmap, updating a small section of the drawing canvas.
+ * The source image geometry / color layout must not have changed since the last upload!
+ *
+ * NOTE: Most users will want to use upload_canvas instead!
+ *
+ * @param display The gles_device that holds the EGL instance for the current state.
+ * @param area_to_update The area of the target image to be uploaded (the "dirty rectangle"). 
+ * @param stride The stride of the image to be uploaded.
+ * @param color_layout The color layout (e.g. RGBA) for the image to be uploaded-- these can be decoded from surfman image formats using get_gl_formats.
+ * @param storage_type The storage type (e.g. GL_UNSIGNED_BYTE) for the image to be uploaded-- again, these can be retreived using get_gl_formats.
+ * @param target_bitmap The bitmap to be uploaded.
+ */
+static void __update_canvas_section(struct gles_display * display, const struct rect * area_to_update, GLuint stride, GLenum storage_type, GLubyte * target_bitmap)
+{
+  //Specify the texture that we're working with.
+	glBindTexture(GL_TEXTURE_2D, display->egl.canvas_texture);
+
+  //Set the texture's stride -- which should match the stride of the source bitmap.
+  glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, stride);
+
+  //And specify our offset into the _source_ image. These assume a row-major ordering,
+  //so SKIP_PIXELS set the X position into the image, and SKIP_ROWS specifies the Y.
+  glPixelStorei(GL_UNPACK_SKIP_PIXELS, area_to_update->x);
+  glPixelStorei(GL_UNPACK_SKIP_ROWS, area_to_update->y);
+
+  //Finally, upload the given image section. 
+  //glTexSubImage2D(GL_TEXTURE_2D, 0, area_to_update->x, area_to_update->y, area_to_update->w, area_to_update->h, display->egl.canvas_color_layout, storage_type, target_bitmap);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, area_to_update->x, area_to_update->y, area_to_update->w, area_to_update->h, display->egl.canvas_color_layout, storage_type, target_bitmap);
+}
+
 
 /**
  * Uploads the provided bitmap onto the drawing canvas. Hardware accelerated, in most cases.
@@ -763,43 +830,30 @@ static int get_gl_formats(int surfman_surface_fmt, GLenum *gl_fmt, GLenum *gl_ty
  * @param display The gles_device that holds the EGL instance for the current state.
  * @param width The width of the image to be uploaded.
  * @param height The height of the image to be uploaded.
+ * @param stride The stride of the image to be uploaded.
  * @param color_layout The color layout (e.g. RGBA) for the image to be uploaded-- these can be decoded from surfman image formats using get_gl_formats.
  * @param storage_type The storage type (e.g. GL_UNSIGNED_BYTE) for the image to be uploaded-- again, these can be retreived using get_gl_formats.
  * @param target_bitmap The bitmap to be uploaded.
+ * @param area_to_update The area of the target image to be uploaded (the "dirty rectangle"). If possible, this will be used to optimize the texture upload.
+ *    Note that usage of area_to_update is not guaranteed; so the entire source image must still be valid.
  */
-static void update_canvas(struct gles_display * display, GLuint width, GLuint height, GLenum color_layout, GLenum storage_type, GLubyte * target_bitmap, const struct rect * area_to_update) {
-
+static void update_canvas(struct gles_display * display, GLuint width, GLuint height, GLuint stride, GLenum color_layout, GLenum storage_type, GLubyte * target_bitmap, const struct rect * area_to_update) 
+{
   //Check to see if the target bitmap matches the width and height of the buffer already craeted on the canvas.
   int width_changed  = (width  != display->egl.canvas_width);
   int height_changed = (height != display->egl.canvas_height);
+  int color_changed  = (color_layout != display->egl.canvas_color_layout);
 
-  //TODO: Possibly check the color mode of the canvas, too?
-
-  //Specify the texture that we're working with.
-	glBindTexture(GL_TEXTURE_2D, display->egl.canvas_texture);
-
-  //For now, we'll ignore the area to update; as updating
-  //subsections currently winds up being slower on some OpenGL 
-  //ES implementations.
-  //
-  //(Perhaps someone with more knowledge of GL can identify
-  // if this should always be the case-- and if there's a better
-  // way to work around that?)
-  (void)area_to_update;
-
-  //If the size of the image to be applied has changed, use glTexImage2D, which reallocates the texture's
-  //memory accordinglydisplay.
-  if(width_changed || height_changed) {
-    glTexImage2D(GL_TEXTURE_2D, 0, color_layout, width, height, 0, color_layout, storage_type, target_bitmap);
-    display->egl.canvas_width  = width;
-    display->egl.canvas_height = height;
+  //If the target display has changed width, height, or color mode, we'll need to "reshape" our canvas.
+  //This effectively resizes the OpenGL texture backing store.
+  if(width_changed || height_changed || color_changed || platform_prefers_new_textures) {
+    __reshape_canvas_and_update(display, width, height, stride, color_layout, storage_type, target_bitmap);
   }
   //Otherwise, use glTexSubImage2D, which replaces the texture's contents without reallocation-- which
   //is thus a bit faster!
   else {
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, color_layout, storage_type, target_bitmap);
+    __update_canvas_section(display, area_to_update, stride, storage_type, target_bitmap);
   }
-
 }
 
 /**
@@ -813,8 +867,8 @@ static void render_canvas() {
 
 /**
  * Upload the provided surface onto the given GLES display's GPU. This typically is implemented by having OpenGL
- * set up a DMA transfer in the target card; but can also theroetically be implemented via a plain copy. (I'm looking
- * at you, swrast).
+ * set up a DMA transfer in the target card; but can also theroetically be implemented via a plain copy. Actual performance
+ * will depend on the invididual Mesa 3D driver.
  *
  * @param display The GLES display onto which the given surface should be copied.
  * @param surface_to_display The surfman surface whose contents should be copied to the GPU.
@@ -824,14 +878,17 @@ static void upload_to_gpu(struct gles_display * display, const struct drm_surfac
 {
     GLenum fb_format, fb_type;
 
+    //Identify the "pixel stride"-- the width of a row in pixels.
+    GLuint stride = surface_to_display->fb.pitch / (surface_to_display->fb.bpp / 8);
+
     //Attempt to get GL-compatible information about the pixel and storage formats used by the target surface.
     if (get_gl_formats(surface_to_display->fb.format, &fb_format, &fb_type ) != SURFMAN_SUCCESS) {  
-        error("Unsupported/unknown surface pixel encoding 'format'!");
+        DRM_ERR("Unsupported/unknown surface pixel encoding 'format'!");
         return;
     }
 
     //Perform the actual copy from the surface to the canvas.
-    update_canvas(display, surface_to_display->fb.width, surface_to_display->fb.height, fb_format, fb_type, surface_to_display->fb.map, area_to_update);
+    update_canvas(display, surface_to_display->fb.width, surface_to_display->fb.height, stride, fb_format, fb_type, surface_to_display->fb.map, area_to_update);
 }
 
 /** 
@@ -863,7 +920,7 @@ static void gles_refresh(struct drm_monitor *monitor, const struct drm_surface *
   // Retreieve the GBM buffer that corresponds to the EGL buffer to be displayed.
   bo = gbm_surface_lock_front_buffer(output_display->gbm.surface);
   if(!bo) {
-    error("Failed to get a display buffer from GBM (instance %u)!", output_display->gbm.surface);
+    DRM_ERR("Failed to get a display buffer from GBM!");
     return;
   }
 
@@ -874,7 +931,6 @@ static void gles_refresh(struct drm_monitor *monitor, const struct drm_surface *
   // And apply that framebuffer directly to the screen. Ideally, we'd actually use a
   // VSYNC timed page flip to do this, but since currently the surface itself tears
   // when being uploaded to surfman, there's no point in adding the complexity.
-  // I'll consider this a TODO.
   drmModeSetCrtc(monitor->device->fd, monitor->crtc, fb->fb_id, 0, 0, &monitor->connector, 1, &monitor->prefered_mode);
 
   // Now that we're no longer using the previous display frame, it's safe to release
@@ -884,7 +940,7 @@ static void gles_refresh(struct drm_monitor *monitor, const struct drm_surface *
 }
 
 /**
- * Determine if the 
+ * Determine if a provided driver is on our list of "additional drivers for which to use the OpenGL plugin".
  */
 static int __matches_additional_drivers(const char * additional_drivers, const char * driver) {
    
@@ -913,8 +969,6 @@ static int __matches_additional_drivers(const char * additional_drivers, const c
 
 /**
  * Determines if the OpenGL ES driver can be used with the given device.
- * TODO: This should probably be more refined to actually check for support-- but this will do for
- * now (as most GPUs should be supported with swrast as a fallback).
  */
 static int gles_match_udev_device(struct udev *udev, struct udev_device *device)
 {
@@ -941,7 +995,6 @@ static int gles_match_udev_device(struct udev *udev, struct udev_device *device)
         return ENODEV;
     }
     driver = udev_device_get_driver(dev);
-  
 
     rc = SURFMAN_ERROR;
 

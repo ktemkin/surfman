@@ -25,6 +25,39 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
+//Compatibility "shim":
+//Older versions of mesa define the unpack extensions without the standards-compliant _EXT suffix.
+//If we have these older definitions (but not the compliant newer ones), we'll define the newer ones
+//instead. This should let us work no matter the Mesa version.
+#if !defined(GL_UNPACK_ROW_LENGTH_EXT) && defined(GL_UNPACK_ROW_LENGTH)
+  #define GL_UNPACK_ROW_LENGTH_EXT  GL_UNPACK_ROW_LENGTH
+  #define GL_UNPACK_SKIP_ROWS_EXT   GL_UNPACK_SKIP_ROWS
+  #define GL_UNPACK_SKIP_PIXELS_EXT GL_UNPACK_SKIP_PIXELS
+#endif
+
+/**
+ * The total color depth (bits describing color information) used for the DRM display.
+ * This sets the color depth used to /output/ our DRM data; it is not related to the guest's color depth.
+ */
+static const int drm_gles_color_depth = 24;
+
+/**
+ * The total bits-per-pixel used for the DRM display.
+ * This sets the format of the GBM buffers used to /output/ our DRM data; it is not related to the guest's color depth.
+ */
+static const int drm_gles_bits_per_pixel = 32;
+
+/**
+ * Defines whether the active platform prefers to receive new textures vs.
+ * accepting partial textures (e.g. "dirty rectangles") for uploads. 
+ * 
+ * For now, we'll assume all platforms prefer new ones (which can be easily DMA'd),
+ * as this is generally true of the mesa implementation we rely on. 
+ */
+static const int platform_prefers_new_textures = 1;
+
+
+//TODO: Document the below!
 
 struct gbm_state {
 	struct gbm_device * dev;
@@ -57,6 +90,7 @@ struct egl_state{
   GLuint canvas_texture;
   GLuint canvas_width;
   GLuint canvas_height;
+  GLenum canvas_color_layout;
 
   GLint uniforms[NUM_UNIFORMS];
 
