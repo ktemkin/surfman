@@ -779,8 +779,8 @@ static void __reshape_canvas_and_update(struct gles_display * display, GLuint wi
 
   //And specify our offset into the image. Since we're uploading the whole image,
   //this should always be zero pixels in!
-  glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-  glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+  glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, 0);
+  glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, 0);
 
   //Upload the screen data to the GPU, recreating the GPU texture. This effectively changes the "geometry"
   //of our canvas-- internally, OpenGL reallocates the relevant texture store, and then schedules a texture transfer.
@@ -815,8 +815,8 @@ static void __update_canvas_section(struct gles_display * display, const struct 
 
   //And specify our offset into the _source_ image. These assume a row-major ordering,
   //so SKIP_PIXELS set the X position into the image, and SKIP_ROWS specifies the Y.
-  glPixelStorei(GL_UNPACK_SKIP_PIXELS, area_to_update->x);
-  glPixelStorei(GL_UNPACK_SKIP_ROWS, area_to_update->y);
+  glPixelStorei(GL_UNPACK_SKIP_PIXELS_EXT, area_to_update->x);
+  glPixelStorei(GL_UNPACK_SKIP_ROWS_EXT, area_to_update->y);
 
   //Finally, upload the given image section. 
   //glTexSubImage2D(GL_TEXTURE_2D, 0, area_to_update->x, area_to_update->y, area_to_update->w, area_to_update->h, display->egl.canvas_color_layout, storage_type, target_bitmap);
