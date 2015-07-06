@@ -384,6 +384,20 @@ static drmModeModeInfoPtr __create_mode_for_framebuffer(struct drm_monitor * mon
     return mode;    
 }
 
+static int __can_recycle_previous_mode(struct drm_monitor *monitor, struct drm_framebuffer *drmfb)
+{
+    struct framebuffer *old_fb = &monitor->last_displayed_framebuffer;
+    struct framebuffer *new_fb = &drmfb->fb;
+
+    return
+      (old_fb->width  == new_fb->width) &&
+      (old_fb->height == new_fb->height) &&
+      (old_fb->pitch  == new_fb->pitch) &&
+      (old_fb->bpp    == new_fb->bpp) &&
+      (old_fb->depth  == new_fb->depth) &&
+      (old_fb->size   == new_fb->size);
+}
+
 
 /*
  * Device interface.
@@ -391,7 +405,7 @@ static drmModeModeInfoPtr __create_mode_for_framebuffer(struct drm_monitor * mon
 static int i915_modeset(struct drm_monitor *monitor, struct drm_framebuffer *drmfb)
 {
     int rc = 0;
-    drmModeConnector *con;
+    drmModeConnector *con = NULL;
     drmModeModeInfoPtr mode, fallback_mode;
     drmModeModeInfoPtr synthetic_mode = NULL;
     unsigned int crtc_x = 0, crtc_y = 0;
@@ -403,6 +417,14 @@ static int i915_modeset(struct drm_monitor *monitor, struct drm_framebuffer *drm
                 monitor->connector, monitor->device->devnode, strerror(errno));
         return rc;
     }
+
+    //Optimization:
+    //If we can re-use the same mode, do so!
+    if(__can_recycle_previous_mode(monitor, drmfb)) {
+        mode = &monitor->last_mode;
+        goto modeset;
+    }
+
     mode = __find_mode(&drmfb->fb, con->modes, con->count_modes, &fallback_mode);
     if (!mode) {
 
@@ -441,7 +463,6 @@ static int i915_modeset(struct drm_monitor *monitor, struct drm_framebuffer *drm
          * plane on top of a blanked framebuffer.
          * Lets try to use a blanked framebuffer as small as possible. */
         if (fallback_mode) {
-
             monitor->plane = i915_plane_new(drmfb, monitor->crtc);
             if (monitor->plane) {
                 /* XXX: I couldn't setup a plane without an underlying (useless) framebuffer.
@@ -518,6 +539,9 @@ modeset:
         }
     }
 
+    //Finally, keep a copy of the active mode-- this may help us to avoid a future modeset.
+    memcpy(&monitor->last_mode, mode,  sizeof(*mode));
+
     drm_device_drop_master(monitor->device);
     
     //If we've created a new mode, destroy the object that holds it.
@@ -567,8 +591,26 @@ static int i915_set(struct drm_monitor *monitor, struct drm_surface *surface)
     return 0;
 }
 
+/**
+ * Stores information about recent modesetting for a given monitor.
+ * This information can be used to accelerate future modesetting.
+ */
+static void __store_last_modeset_information(struct drm_monitor *monitor)
+{
+    //Copy the framebuffer into the "last displayed framebuffer" slot, which will allow
+    //us to query for framebuffer information in the future...
+    memcpy(&monitor->last_displayed_framebuffer, &monitor->surface->fb, sizeof(monitor->surface->fb));
+
+    //... and remove any relevant mapping information.
+    monitor->last_displayed_framebuffer.map = 0;
+}
+
 static void i915_unset(struct drm_monitor *monitor)
 {
+    //Store information about the most recent display,
+    //so we can intelligently choose whether to remodeset in the future.
+    __store_last_modeset_information(monitor);
+
     monitor->surface = NULL;
     list_del(&monitor->l_sur);
     if (monitor->plane) {

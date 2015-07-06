@@ -160,6 +160,12 @@ struct drm_monitor {
     /* Refs */
     struct drm_surface *surface;    /* Surface displayed currently. */
     struct drm_device *device;      /* Reference to the device (in case of multiple devices). */
+
+    //Information about the last time the given monitor was used.
+    //Used to detect situations where we don't need to remodeset,
+    //which can dramatically increase switching speeds.
+    struct framebuffer last_displayed_framebuffer;
+    drmModeModeInfo    last_mode;
 };
 
 /* Operations expected of a device. */
