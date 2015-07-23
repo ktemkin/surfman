@@ -160,7 +160,8 @@ static int drmModeSetDpmsProp(int fd, drmModeConnector *connector, int value)
     return 0;
 }
 
-static int drm_monitor_disable_dpms(struct drm_monitor *monitor)
+
+int drm_monitor_force_dpms(struct drm_monitor *monitor, int state)
 {
     drmModeConnector *c;
     int rc;
@@ -175,10 +176,16 @@ static int drm_monitor_disable_dpms(struct drm_monitor *monitor)
      * the best place to initially set DPMS state to On in the end and we manage timing
      * it out into power saving states with xenmgr.
      */
-    rc = drmModeSetDpmsProp(monitor->device->fd, c, DRM_MODE_DPMS_ON);
+    rc = drmModeSetDpmsProp(monitor->device->fd, c, state);
     drmModeFreeConnector(c);
     return rc;
 }
+
+static int drm_monitor_disable_dpms(struct drm_monitor *monitor)
+{
+    drm_monitor_force_dpms(DRM_MODE_DPMS_ON);
+}
+
 
 /*
  * Check that default connector configuration is suitable for this monitor.

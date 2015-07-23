@@ -570,6 +570,16 @@ extern "C"
         void                        (*post_s3)(struct surfman_plugin *plugin);
 
         /*
+        ** blank: Blank all monitors on the plugin, if possible.
+        */
+        void                        (*blank)(struct surfman_plugin *plugin);
+
+        /*
+        ** blank: Unblank any monitors associated with the plugin, if possible.
+        */
+        void                        (*unblank)(struct surfman_plugin *plugin);
+
+        /*
         ** increase_brightness: Increase brightness
         */
         void                        (*increase_brightness)(struct surfman_plugin *plugin);

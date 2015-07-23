@@ -121,6 +121,27 @@ dbus_post_s3 (DBusMessage *msg, DBusMessage *reply)
   return TRUE;
 }
 
+
+dbus_bool_t
+dbus_blank (DBusMessage *msg, DBusMessage *reply)
+{
+  plugin_blank();
+  return TRUE;
+}
+
+
+dbus_bool_t
+dbus_unblank (DBusMessage *msg, DBusMessage *reply)
+{
+  //Ask each plugin to unblank the screen...
+  plugin_unblank();
+
+  //... and re-display the most recently displayed domain.
+  domain_set_visible(NULL, false);
+  return TRUE;
+}
+
+
 /* XXX: This one should go away */
 dbus_bool_t
 dbus_set_pv_display (DBusMessage *msg, DBusMessage *reply)

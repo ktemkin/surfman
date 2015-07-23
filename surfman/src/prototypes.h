@@ -45,6 +45,8 @@ extern dbus_bool_t dbus_get_visible(DBusMessage *msg, DBusMessage *reply);
 extern dbus_bool_t dbus_has_vgpu(DBusMessage *msg, DBusMessage *reply);
 extern dbus_bool_t dbus_notify_death(DBusMessage *msg, DBusMessage *reply);
 extern dbus_bool_t dbus_notify_visible_domain_changed(int domid);
+extern dbus_bool_t dbus_blank(DBusMessage *msg, DBusMessage *reply);
+extern dbus_bool_t dbus_unblank(DBusMessage *msg, DBusMessage *reply);
 /* dbus.c */
 extern DBusHandlerResult dbus_message(DBusConnection *connection, DBusMessage *msg, void *user_data);
 extern void dbus_start_service(void);

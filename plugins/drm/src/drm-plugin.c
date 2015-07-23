@@ -480,6 +480,55 @@ INTERNAL void drmp_restore_brightness(surfman_plugin_t *plugin)
     backlight_restore(backlight);
 }
 
+/**
+ * Forces the DPMS modes for all monitors controlled via this plugin.
+ * Can mass blank or unblank monitors.
+ *
+ * @param mode The DPMS mode to set.
+ */
+INTERNAL void __force_all_dpms_modes(int mode)
+{
+    struct drm_device *d, *dd;
+
+    //Iterate over each of the devices managed by the plugin...
+    list_for_each_entry_safe(d, dd, &devices, l) {
+        struct drm_monitor *m, *mm;
+
+        //... and over each monitor managed by the device...
+        list_for_each_entry_safe(m, mm, &(d->monitors), l_dev) {
+
+            //... and force the DPMS mode to the mode set.
+            drm_monitor_force_dpms(m, mode)
+        }
+    }
+}
+
+/**
+ * Blank all connected displays-- potentially saving a lot of power.
+ */
+INTERNAL void drmp_blank(surfman_plugin_t *plugin)
+{
+    (void)plugin;
+
+    //Set all monitors' DPMS modes to off.
+    DRM_DBG("blanking!");
+    __force_all_dpms_modes(DRM_MODE_DPMS_OFF);
+
+}
+
+/**
+ * Unblank any displays previously blanked by drmp_blank.
+ */
+INTERNAL void drmp_unblank(surfman_plugin_t *plugin)
+{
+    (void)plugin;
+
+    //Force all monitors' DPMS modes to on.
+    DRM_DBG("unblanking!");
+    __force_all_dpms_modes(DRM_MODE_DPMS_ON);
+}
+
+
 #define OPTIONAL (NULL)
 #define REQUIRED ((void*)0xDEADBEEF)
 /* Surfman plugin interface. */
@@ -509,6 +558,9 @@ surfman_plugin_t surfman_plugin = {
     /* S3 management. */
     .pre_s3 = OPTIONAL,                 /* DRM engine should deal with that. */
     .post_s3 = OPTIONAL,                /* DRM engine should deal with that. */
+
+    .blank = drmp_blank,
+    .unblank = drmp_unblank,
 
     /* Brightness management (for integrated displays). */
     .increase_brightness = drmp_increase_brightness,

@@ -389,6 +389,32 @@ plugin_post_s3 (void)
     }
 }
 
+
+void
+plugin_blank (void)
+{
+  struct plugin *p;
+
+  LIST_FOREACH (p, &plugin_list, link)
+    {
+      if (PLUGIN_HAS_METHOD (p, blank))
+        PLUGIN_CALL (p, blank);
+    }
+}
+
+void
+plugin_blank (void)
+{
+  struct plugin *p;
+
+  LIST_FOREACH (p, &plugin_list, link)
+    {
+      if (PLUGIN_HAS_METHOD (p, blank))
+        PLUGIN_CALL (p, blank);
+    }
+}
+
+
 void
 plugin_increase_brightness (void)
 {

@@ -39,6 +39,8 @@ static const struct
   { "display_image", dbus_display_image },
   { "has_vgpu", dbus_has_vgpu },
   { "display_text", dbus_display_text },
+  { "blank", dbus_blank },
+  { "unblank", dbus_unblank },
   { NULL, NULL },
 };
 
